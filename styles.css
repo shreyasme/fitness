@@ -556,6 +556,12 @@ a { text-decoration: none; color: inherit; }
   content: ''; position: absolute; top: 2px; right: 3px;
   width: 5px; height: 5px; border-radius: 50%; background: #34C759;
 }
+.act-day-tab.today {
+  border-color: rgba(255,255,255,0.75);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .act-day-tab:hover:not(.active) { background: rgba(255,255,255,0.12); }
 
 /* Muscle group chips */

@@ -719,10 +719,14 @@ function renderActivityCard() {
   const freq     = actMonthlyMuscleFreq();
 
   // ── Day tabs ──
+  const todayDow    = new Date().getDay() === 0 ? 7 : new Date().getDay();
+  const todayName   = DAYS[todayDow - 1];
+
   let tabsHTML = DAYS.map(d => {
     const hasDot = daysData.includes(d) ? ' has-data' : '';
     const active = d === actSelectedDay ? ' active' : '';
-    return `<button class="act-day-tab${active}${hasDot}" data-day="${d}">${d}</button>`;
+    const isToday = d === todayName ? ' today' : '';
+    return `<button class="act-day-tab${active}${hasDot}${isToday}" data-day="${d}">${d}</button>`;
   }).join('');
 
   // ── Muscle chip grid (only if a day is selected) ──
