@@ -145,6 +145,7 @@ function initProfile() {
   }
 
   renderHistory();
+  initActivityCard();
 }
 
 // ─── Session Management ──────────────────────────────────────
@@ -576,6 +577,170 @@ if (newChatBtn) newChatBtn.addEventListener('click', () => {
   createSession();
   renderHistory();
 });
+
+// ─── My Activity Card ────────────────────────────────────────
+const MUSCLE_GROUPS = [
+  'Chest', 'Shoulder', 'Triceps', 'Biceps', 'Back', 'Legs', 'Abs', 'Cardio'
+];
+const STEP_GOAL = 10000;
+
+function activityStorageKey() {
+  return 'dfitActivity_' + (profile.username || profile.name || 'guest') + '_' + todayKey();
+}
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+}
+
+function loadActivityData() {
+  try { return JSON.parse(localStorage.getItem(activityStorageKey())) || {}; } catch { return {}; }
+}
+
+function saveActivityData(data) {
+  localStorage.setItem(activityStorageKey(), JSON.stringify(data));
+}
+
+function getActivityData() {
+  const data = loadActivityData();
+  const result = { steps: data.steps || 0, muscles: {} };
+  MUSCLE_GROUPS.forEach(g => {
+    result.muscles[g] = {
+      exercises: data.muscles?.[g]?.exercises || 0,
+      sets:      data.muscles?.[g]?.sets      || 0,
+      reps:      data.muscles?.[g]?.reps      || 0
+    };
+  });
+  return result;
+}
+
+function renderActivityProgress(data) {
+  const steps   = parseInt(data.steps) || 0;
+  const stepPct = Math.min(100, Math.round((steps / STEP_GOAL) * 100));
+
+  let workoutDone = false;
+  let summaryLines = '';
+  MUSCLE_GROUPS.forEach(g => {
+    const ex = parseInt(data.muscles?.[g]?.exercises) || 0;
+    if (ex > 0) workoutDone = true;
+    summaryLines += `<div>${g}: <strong>${ex}</strong> exercise${ex !== 1 ? 's' : ''}</div>`;
+  });
+
+  const workoutStatus = workoutDone ? 'Completed' : 'Not Completed';
+  const goalStatus    = (steps >= STEP_GOAL && workoutDone) ? 'On Track' : 'Needs Activity';
+
+  document.getElementById('act-step-pct-bar').style.width    = stepPct + '%';
+  document.getElementById('act-step-pct-text').textContent   = `${steps.toLocaleString()} / ${STEP_GOAL.toLocaleString()}`;
+  document.getElementById('act-workout-summary').innerHTML   = summaryLines;
+  document.getElementById('act-workout-status').textContent  = workoutStatus;
+  document.getElementById('act-workout-status').className    = 'activity-badge ' + (workoutDone ? 'done' : 'notdone');
+  document.getElementById('act-goal-status').textContent     = goalStatus;
+  document.getElementById('act-goal-status').className       = 'activity-badge ' + (goalStatus === 'On Track' ? 'good' : 'warn');
+}
+
+function initActivityCard() {
+  const card = document.getElementById('activityCard');
+  const body = document.getElementById('activityCardBody');
+  card.style.display = 'block';
+
+  // Guest: show lock message
+  if (profile.mode !== 'user') {
+    body.innerHTML = `
+      <div class="activity-lock">
+        <span class="activity-lock-icon">🔒</span>
+        Login to track your daily activity
+      </div>`;
+    return;
+  }
+
+  // Build logged-in UI
+  const data = getActivityData();
+
+  // Steps input
+  let html = `
+    <div class="activity-steps-row">
+      <label for="act-steps">Daily Steps</label>
+      <input class="activity-input" id="act-steps" type="number" min="0" max="100000"
+        placeholder="Enter today's steps" value="${data.steps || ''}">
+    </div>
+    <hr class="activity-divider">`;
+
+  // Muscle groups
+  MUSCLE_GROUPS.forEach(g => {
+    const key = g;
+    const d   = data.muscles?.[g] || {};
+    html += `
+    <div class="activity-muscle-group">
+      <div class="activity-muscle-label">${g}</div>
+      <div class="activity-muscle-inputs">
+        <div>
+          <label>Exercises</label>
+          <input class="activity-input act-muscle-input" type="number" min="0"
+            data-group="${key}" data-field="exercises"
+            value="${d.exercises || ''}" placeholder="0">
+        </div>
+        <div>
+          <label>Sets</label>
+          <input class="activity-input act-muscle-input" type="number" min="0"
+            data-group="${key}" data-field="sets"
+            value="${d.sets || ''}" placeholder="0">
+        </div>
+        <div>
+          <label>Reps</label>
+          <input class="activity-input act-muscle-input" type="number" min="0"
+            data-group="${key}" data-field="reps"
+            value="${d.reps || ''}" placeholder="0">
+        </div>
+      </div>
+    </div>`;
+  });
+
+  // Progress section
+  html += `
+    <hr class="activity-divider">
+    <div class="activity-progress-title">Today's Progress</div>
+    <div class="activity-progress-row">
+      <div class="activity-progress-label">Steps</div>
+      <div class="activity-progress-bar-wrap">
+        <div class="activity-progress-bar-fill" id="act-step-pct-bar" style="width:0%"></div>
+      </div>
+      <div class="activity-progress-text" id="act-step-pct-text">0 / ${STEP_GOAL.toLocaleString()}</div>
+    </div>
+    <div class="activity-progress-row">
+      <div class="activity-progress-label">Workout Summary</div>
+      <div class="activity-workout-summary" id="act-workout-summary"></div>
+    </div>
+    <div class="activity-status-badges">
+      <span class="activity-badge notdone" id="act-workout-status">Not Completed</span>
+      <span class="activity-badge warn"    id="act-goal-status">Needs Activity</span>
+    </div>`;
+
+  body.innerHTML = html;
+
+  // Initial progress render
+  renderActivityProgress(data);
+
+  // ── Event listeners ──────────────────────────────────────
+  document.getElementById('act-steps').addEventListener('input', function() {
+    const d = loadActivityData();
+    d.steps = parseInt(this.value) || 0;
+    saveActivityData(d);
+    renderActivityProgress(getActivityData());
+  });
+
+  body.querySelectorAll('.act-muscle-input').forEach(inp => {
+    inp.addEventListener('input', function() {
+      const d   = loadActivityData();
+      const grp = this.dataset.group;
+      const fld = this.dataset.field;
+      if (!d.muscles) d.muscles = {};
+      if (!d.muscles[grp]) d.muscles[grp] = {};
+      d.muscles[grp][fld] = parseInt(this.value) || 0;
+      saveActivityData(d);
+      renderActivityProgress(getActivityData());
+    });
+  });
+}
 
 // ─── Bootstrap ───────────────────────────────────────────────
 initProfile();

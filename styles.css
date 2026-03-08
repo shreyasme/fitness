@@ -517,6 +517,94 @@ a { text-decoration: none; color: inherit; }
 .bmi-stat-label { font-size: 10px; opacity: 0.75; font-weight: 500; }
 .bmi-stat-val   { font-size: 15px; font-weight: 700; }
 
+/* ── My Activity Card ────────────────────────────────────── */
+.activity-card {
+  background: linear-gradient(135deg, #5856D6, #007AFF);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+  color: #fff;
+  max-height: 480px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.25) transparent;
+}
+.activity-card::-webkit-scrollbar { width: 4px; }
+.activity-card::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 4px; }
+.activity-card-title {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.8px;
+  text-transform: uppercase; opacity: 0.8; margin-bottom: 10px;
+}
+.activity-lock {
+  text-align: center; padding: 12px 0 4px;
+  font-size: 13px; opacity: 0.85; line-height: 1.5;
+}
+.activity-lock-icon { font-size: 24px; display: block; margin-bottom: 6px; }
+/* Steps row */
+.activity-steps-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+}
+.activity-steps-row label {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+  text-transform: uppercase; opacity: 0.8; white-space: nowrap;
+}
+/* Muscle group sections */
+.activity-muscle-group { margin-bottom: 10px; }
+.activity-muscle-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+  text-transform: uppercase; opacity: 0.85; margin-bottom: 5px;
+}
+.activity-muscle-inputs {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px;
+}
+.activity-muscle-inputs label {
+  font-size: 9px; opacity: 0.7; font-weight: 600; display: block;
+  text-transform: uppercase; margin-bottom: 2px;
+}
+/* Shared input style inside activity card */
+.activity-input {
+  width: 100%; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 6px; color: #fff; font-size: 12px; font-weight: 600;
+  padding: 5px 7px; font-family: inherit; outline: none; box-sizing: border-box;
+  -moz-appearance: textfield;
+}
+.activity-input::placeholder { color: rgba(255,255,255,0.5); font-weight: 400; }
+.activity-input:focus { border-color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.25); }
+.activity-input::-webkit-inner-spin-button,
+.activity-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.activity-divider {
+  border: none; border-top: 1px solid rgba(255,255,255,0.2);
+  margin: 12px 0;
+}
+/* Progress section */
+.activity-progress-title {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.6px;
+  text-transform: uppercase; opacity: 0.85; margin-bottom: 8px;
+}
+.activity-progress-row { margin-bottom: 6px; }
+.activity-progress-label { font-size: 10px; opacity: 0.7; font-weight: 600; text-transform: uppercase; margin-bottom: 3px; }
+.activity-progress-bar-wrap {
+  background: rgba(255,255,255,0.18); border-radius: 99px; height: 6px; overflow: hidden; margin-bottom: 2px;
+}
+.activity-progress-bar-fill {
+  height: 100%; border-radius: 99px; background: #fff;
+  transition: width 0.4s ease;
+}
+.activity-progress-text { font-size: 11px; font-weight: 700; opacity: 0.9; }
+.activity-workout-summary {
+  font-size: 11px; opacity: 0.85; line-height: 1.7; margin-bottom: 6px;
+}
+.activity-status-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.activity-badge {
+  font-size: 10px; font-weight: 700; padding: 3px 9px;
+  border-radius: 99px; background: rgba(255,255,255,0.2);
+  letter-spacing: 0.3px;
+}
+.activity-badge.good  { background: rgba(52,199,89,0.35); }
+.activity-badge.warn  { background: rgba(255,149,0,0.35); }
+.activity-badge.done  { background: rgba(52,199,89,0.35); }
+.activity-badge.notdone { background: rgba(255,59,48,0.35); }
+
 /* History list */
 .history-section { margin-bottom: 4px; }
 .history-section-label {
