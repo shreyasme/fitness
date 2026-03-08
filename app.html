@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>D-Fit — Chat</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- ═══════════════════════════════════════
+       LEFT SIDEBAR — History + BMI
+  ═══════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar">
+
+    <!-- ── Brand + theme toggle ── -->
+    <div class="sidebar-topbar">
+      <div class="sidebar-brand">
+        <div class="sidebar-logo">
+          <svg viewBox="0 0 64 28" xmlns="http://www.w3.org/2000/svg" width="30" height="13" aria-hidden="true">
+            <rect x="0"  y="0" width="10" height="28" rx="2.5"  fill="white"/>
+            <rect x="10" y="5" width="4"  height="18" rx="1.5"  fill="white" opacity="0.5"/>
+            <rect x="14" y="9" width="3"  height="10" rx="1"    fill="white" opacity="0.72"/>
+            <rect x="17" y="12" width="9" height="4"  rx="1"    fill="white" opacity="0.35"/>
+            <text x="32" y="20" font-family="'Arial Black',Impact,'Helvetica Neue',sans-serif" font-size="18" font-weight="900" fill="white" text-anchor="middle">D</text>
+            <rect x="38" y="12" width="9" height="4"  rx="1"    fill="white" opacity="0.35"/>
+            <rect x="47" y="9" width="3"  height="10" rx="1"    fill="white" opacity="0.72"/>
+            <rect x="50" y="5" width="4"  height="18" rx="1.5"  fill="white" opacity="0.5"/>
+            <rect x="54" y="0" width="10" height="28" rx="2.5"  fill="white"/>
+          </svg>
+        </div>
+        <span class="sidebar-title"><span class="brand-d">D</span>-Fit Coach</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span id="sideThemeLabel" style="font-size:14px;line-height:1"></span>
+        <button class="theme-toggle" id="sideThemeToggle" aria-label="Toggle dark mode"></button>
+      </div>
+    </div>
+
+    <!-- ── Scrollable body: BMI + history ── -->
+    <div class="sidebar-body" id="sidebarBody">
+
+      <!-- BMI Card -->
+      <div class="bmi-card" id="bmiBadgeCard" style="display:none">
+        <div class="bmi-card-title">Your BMI</div>
+        <div class="bmi-card-value" id="sidebarBmiValue">—</div>
+        <div class="bmi-card-cat"   id="sidebarBmiCat">—</div>
+        <div class="bmi-card-stats" id="sidebarBmiStats"></div>
+      </div>
+
+      <!-- New Chat -->
+      <div class="new-chat-btn" id="newChatBtn" role="button" tabindex="0">
+        <span>＋</span>
+        <span>New Conversation</span>
+      </div>
+
+      <!-- Chat History — saved only here -->
+      <div id="historyList">
+        <!-- Populated by JS -->
+      </div>
+
+    </div>
+
+  </aside>
+
+  <!-- ═══════════════════════════════════════
+       MAIN CHAT AREA
+  ═══════════════════════════════════════ -->
+  <main class="chat-main">
+
+    <!-- Chat Topbar -->
+    <div class="chat-topbar">
+      <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">☰</button>
+
+      <!-- spacer -->
+      <div style="flex:1"></div>
+
+      <!-- Top-right profile chip (click to logout) -->
+      <div class="chat-topbar-right">
+        <span class="badge badge-green" id="topbarBmiPill" style="display:none">BMI: —</span>
+        <div class="topbar-profile-chip" id="profileChip" role="button" tabindex="0" aria-haspopup="true" title="Account options">
+          <div class="topbar-user-avatar" id="topbarUserAvatar">G</div>
+          <span class="topbar-user-name" id="topbarUserName">Guest</span>
+          <span class="profile-chip-caret">▾</span>
+        </div>
+        <!-- Dropdown -->
+        <div class="profile-dropdown" id="profileDropdown">
+          <div class="profile-dropdown-header">
+            <div class="topbar-user-avatar" id="dropdownAvatar" style="width:36px;height:36px;font-size:15px">G</div>
+            <div>
+              <div class="profile-dropdown-name" id="dropdownName">Guest</div>
+              <div class="profile-dropdown-mode" id="dropdownMode">Guest Session</div>
+            </div>
+          </div>
+          <div class="profile-dropdown-divider"></div>
+          <button class="profile-dropdown-item profile-dropdown-logout" id="logoutBtn">
+            <span>⎋</span> Sign out
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Messages Container -->
+    <div class="chat-messages" id="chatMessages">
+
+      <!-- Welcome screen shown on new session -->
+      <div class="welcome-screen" id="welcomeScreen">
+        <div class="welcome-icon">
+          <svg viewBox="0 0 64 28" xmlns="http://www.w3.org/2000/svg" width="64" height="28" aria-hidden="true">
+            <rect x="0"  y="0" width="10" height="28" rx="2.5"  fill="white"/>
+            <rect x="10" y="5" width="4"  height="18" rx="1.5"  fill="white" opacity="0.5"/>
+            <rect x="14" y="9" width="3"  height="10" rx="1"    fill="white" opacity="0.72"/>
+            <rect x="17" y="12" width="9" height="4"  rx="1"    fill="white" opacity="0.35"/>
+            <text x="32" y="20" font-family="'Arial Black',Impact,'Helvetica Neue',sans-serif" font-size="18" font-weight="900" fill="white" text-anchor="middle">D</text>
+            <rect x="38" y="12" width="9" height="4"  rx="1"    fill="white" opacity="0.35"/>
+            <rect x="47" y="9" width="3"  height="10" rx="1"    fill="white" opacity="0.72"/>
+            <rect x="50" y="5" width="4"  height="18" rx="1.5"  fill="white" opacity="0.5"/>
+            <rect x="54" y="0" width="10" height="28" rx="2.5"  fill="white"/>
+          </svg>
+        </div>
+        <h2 class="welcome-title">Hello! I'm D-Fit Coach</h2>
+        <p class="welcome-sub" id="welcomeSub">
+          Your AI-powered fitness and nutrition assistant. Ask me anything about workouts, diet, schedules, and reaching your goals.
+        </p>
+        <div class="suggested-prompts" id="suggestedPrompts">
+          <button class="suggested-prompt" data-prompt="Give me a beginner workout plan for this week">🗓️ Give me a beginner workout plan for this week</button>
+          <button class="suggested-prompt" data-prompt="What should I eat to meet my fitness goal?">🥗 What should I eat to meet my fitness goal?</button>
+          <button class="suggested-prompt" data-prompt="How many calories should I burn per day?">🔥 How many calories should I burn per day?</button>
+          <button class="suggested-prompt" data-prompt="Explain my BMI and what it means for my health">📊 Explain my BMI and what it means</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Input Area -->
+    <div class="chat-input-wrap">
+      <div class="chat-input-inner" id="chatInputInner">
+        <textarea
+          class="chat-textarea"
+          id="chatInput"
+          placeholder="Ask your AI fitness coach…"
+          rows="1"
+          maxlength="1000"
+        ></textarea>
+        <button class="chat-send-btn" id="sendBtn" title="Send message" disabled>▶</button>
+      </div>
+      <p class="input-hint">D-Fit AI provides general fitness guidance. Always consult a healthcare professional for medical advice.</p>
+    </div>
+
+  </main>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
