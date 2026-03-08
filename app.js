@@ -695,7 +695,7 @@ function actMonthlyMuscleFreq() {
     const day = all[key];
     if (day && day.muscles) {
       MUSCLE_GROUPS.forEach(g => {
-        if ((day.muscles[g]?.exercises || 0) > 0) freq[g]++;
+        if (day.muscles[g]) freq[g]++;
       });
     }
   }
@@ -708,7 +708,7 @@ function actDaysWithData() {
   return DAYS.filter(d => {
     const key = actDateKey(actDateForDayTab(d));
     const day = all[key];
-    return day && ((day.steps > 0) || MUSCLE_GROUPS.some(g => (day.muscles?.[g]?.exercises || 0) > 0));
+    return day && ((day.steps > 0) || MUSCLE_GROUPS.some(g => !!day.muscles?.[g]));
   });
 }
 
@@ -718,139 +718,79 @@ function renderActivityCard() {
   const daysData = actDaysWithData();
   const freq     = actMonthlyMuscleFreq();
 
-  // ── Day tabs ──
-  const todayDow    = new Date().getDay() === 0 ? 7 : new Date().getDay();
-  const todayName   = DAYS[todayDow - 1];
+  // -- Day tabs --
+  const todayDow  = new Date().getDay() === 0 ? 7 : new Date().getDay();
+  const todayName = DAYS[todayDow - 1];
 
-  let tabsHTML = DAYS.map(d => {
-    const hasDot = daysData.includes(d) ? ' has-data' : '';
-    const active = d === actSelectedDay ? ' active' : '';
+  const tabsHTML = DAYS.map(d => {
+    const hasDot  = daysData.includes(d) ? ' has-data' : '';
+    const active  = d === actSelectedDay ? ' active' : '';
     const isToday = d === todayName ? ' today' : '';
     return `<button class="act-day-tab${active}${hasDot}${isToday}" data-day="${d}">${d}</button>`;
   }).join('');
 
-  // ── Muscle chip grid (only if a day is selected) ──
-  let chipsHTML = '';
-  let inputsHTML = '';
-
+  // -- Muscle chips + steps for selected day --
+  let dayHTML = '';
   if (actSelectedDay) {
     const dayData = actLoadDay(actSelectedDay);
+    const chipsHTML = MUSCLE_GROUPS.map(g => {
+      const done = actSelectedMuscles.includes(g);
+      return `<button class="act-chip${done ? ' selected' : ''}" data-muscle="${g}">${done ? '\u2713 ' : ''}${g}</button>`;
+    }).join('');
 
-    chipsHTML = `
-      <div style="font-size:10px;opacity:0.7;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">
-        ${actSelectedDay} — Select workouts
+    dayHTML = `
+      <div style="font-size:10px;opacity:0.65;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px">
+        ${actSelectedDay === todayName ? 'Today' : actSelectedDay} \u2014 Tap muscles you trained
       </div>
-      <div class="act-muscle-chips">` +
-      MUSCLE_GROUPS.map(g => {
-        const sel = actSelectedMuscles.includes(g) ? ' selected' : '';
-        return `<button class="act-chip${sel}" data-muscle="${g}">${g}</button>`;
-      }).join('') +
-      `</div>`;
-
-    // Steps
-    inputsHTML += `
-      <div class="act-steps-row">
-        <label for="act-steps">Steps</label>
+      <div class="act-muscle-chips">${chipsHTML}</div>
+      <div class="act-steps-row" style="margin-top:10px">
+        <label for="act-steps">\ud83e\uddff Steps</label>
         <input class="activity-input" id="act-steps" type="number" min="0"
-          placeholder="Today's steps" value="${dayData.steps || ''}">
-      </div>`;
-
-    // Muscle inputs for selected muscles
-    if (actSelectedMuscles.length) {
-      inputsHTML += `<div class="act-inputs-panel">`;
-      actSelectedMuscles.forEach(g => {
-        const d = dayData.muscles?.[g] || {};
-        inputsHTML += `
-          <div class="act-muscle-block">
-            <div class="act-muscle-block-label">${g}</div>
-            <div class="act-three-cols">
-              <div class="act-field">
-                <label>Exercises</label>
-                <input class="activity-input act-mi" type="number" min="0"
-                  data-group="${g}" data-field="exercises"
-                  value="${d.exercises||''}" placeholder="0">
-              </div>
-              <div class="act-field">
-                <label>Sets</label>
-                <input class="activity-input act-mi" type="number" min="0"
-                  data-group="${g}" data-field="sets"
-                  value="${d.sets||''}" placeholder="0">
-              </div>
-              <div class="act-field">
-                <label>Reps</label>
-                <input class="activity-input act-mi" type="number" min="0"
-                  data-group="${g}" data-field="reps"
-                  value="${d.reps||''}" placeholder="0">
-              </div>
-            </div>
-          </div>`;
-      });
-      inputsHTML += `</div>`;
-    }
-
-    inputsHTML += `<button class="act-save-btn" id="actSaveBtn">💾 Save ${actSelectedDay}'s activity</button>`;
+          placeholder="e.g. 8000" value="${dayData.steps || ''}" style="max-width:110px">
+      </div>
+      <div id="act-autosaved" style="font-size:10px;opacity:0;text-align:right;transition:opacity 0.3s">\u2705 Saved</div>`;
   }
 
-  // ── Pie chart section ──
+  // -- Compact pie chart --
   const pieSegs = MUSCLE_GROUPS
     .map(g => ({ label: g, value: freq[g], color: MG_COLORS[g] }))
     .filter(s => s.value > 0);
 
-  const maxFreq = Math.max(...MUSCLE_GROUPS.map(g => freq[g]), 1);
-  const monthBars = MUSCLE_GROUPS.map(g => {
-    const pct = Math.round((freq[g] / 30) * 100);
-    return `
-      <div class="act-month-bar-row">
-        <div class="act-month-bar-label">
-          <span>${g}</span>
-          <span>${freq[g]} / 30 days</span>
-        </div>
-        <div class="act-month-bar-track">
-          <div class="act-month-bar-fill" style="width:${pct}%;background:${MG_COLORS[g]}"></div>
-        </div>
-      </div>`;
-  }).join('');
-
   const legendHTML = MUSCLE_GROUPS
     .filter(g => freq[g] > 0)
-    .map(g => `
-      <div class="act-legend-item">
-        <div class="act-legend-dot" style="background:${MG_COLORS[g]}"></div>
-        <span>${g} (${freq[g]})</span>
-      </div>`).join('');
+    .map(g => `<div class="act-legend-item">
+      <div class="act-legend-dot" style="background:${MG_COLORS[g]}"></div>
+      <span>${g}&nbsp;${freq[g]}d</span>
+    </div>`).join('');
 
   body.innerHTML = `
     <div class="act-day-tabs">${tabsHTML}</div>
-    ${chipsHTML}
-    ${inputsHTML}
+    ${dayHTML}
     <hr class="activity-divider">
-    <div class="act-chart-subtitle">30-Day Muscle Distribution</div>
+    <div class="act-chart-subtitle">This month</div>
     <div class="act-chart-wrap">
-      <canvas id="actPieCanvas" width="140" height="140"></canvas>
-      <div class="act-legend">${legendHTML || '<div style="font-size:11px;opacity:0.6">Log workouts to see your chart</div>'}</div>
-    </div>
-    <div class="act-month-bar-list">${monthBars}</div>`;
+      <canvas id="actPieCanvas" width="110" height="110"></canvas>
+      <div class="act-legend">${legendHTML || '<div style="font-size:11px;opacity:0.55">Log workouts to see chart</div>'}</div>
+    </div>`;
 
-  // Draw pie
   drawPie('actPieCanvas', pieSegs);
 
-  // ── Wire events ──────────────────────────────────────────
+  // -- Wire: day tabs --
   body.querySelectorAll('.act-day-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       const day = btn.dataset.day;
-      if (actSelectedDay === day) {
-        actSelectedDay     = null;
-        actSelectedMuscles = [];
+      actSelectedDay = (actSelectedDay === day) ? null : day;
+      if (actSelectedDay) {
+        const saved = actLoadDay(actSelectedDay);
+        actSelectedMuscles = MUSCLE_GROUPS.filter(g => (saved.muscles?.[g] || 0) > 0);
       } else {
-        actSelectedDay     = day;
-        // restore previously saved muscles for this day
-        const saved = actLoadDay(day);
-        actSelectedMuscles = MUSCLE_GROUPS.filter(g => (saved.muscles?.[g]?.exercises||0) > 0);
+        actSelectedMuscles = [];
       }
       renderActivityCard();
     });
   });
 
+  // -- Wire: muscle chips -- auto-save on tap --
   body.querySelectorAll('.act-chip').forEach(chip => {
     chip.addEventListener('click', () => {
       const m = chip.dataset.muscle;
@@ -859,34 +799,28 @@ function renderActivityCard() {
       } else {
         actSelectedMuscles.push(m);
       }
+      autoSaveDay();
       renderActivityCard();
     });
   });
 
-  const saveBtn = document.getElementById('actSaveBtn');
-  if (saveBtn) {
-    saveBtn.addEventListener('click', () => {
-      const dayData = actLoadDay(actSelectedDay);
-      dayData.steps = parseInt(document.getElementById('act-steps').value) || 0;
-      if (!dayData.muscles) dayData.muscles = {};
-
-      body.querySelectorAll('.act-mi').forEach(inp => {
-        const g   = inp.dataset.group;
-        const fld = inp.dataset.field;
-        if (!dayData.muscles[g]) dayData.muscles[g] = {};
-        dayData.muscles[g][fld] = parseInt(inp.value) || 0;
-      });
-
-      // Zero out muscles that were de-selected
-      MUSCLE_GROUPS.forEach(g => {
-        if (!actSelectedMuscles.includes(g)) delete dayData.muscles[g];
-      });
-
-      actSaveDay(actSelectedDay, dayData);
-      saveBtn.textContent = '✅ Saved!';
-      setTimeout(() => renderActivityCard(), 800);
-    });
+  // -- Wire: steps -- auto-save on change --
+  const stepsInput = document.getElementById('act-steps');
+  if (stepsInput) {
+    stepsInput.addEventListener('change', autoSaveDay);
+    stepsInput.addEventListener('blur', autoSaveDay);
   }
+}
+function autoSaveDay() {
+  if (!actSelectedDay) return;
+  const dayData = actLoadDay(actSelectedDay);
+  const stepsEl = document.getElementById('act-steps');
+  if (stepsEl) dayData.steps = parseInt(stepsEl.value) || 0;
+  dayData.muscles = {};
+  actSelectedMuscles.forEach(g => { dayData.muscles[g] = 1; });
+  actSaveDay(actSelectedDay, dayData);
+  const el = document.getElementById('act-autosaved');
+  if (el) { el.style.opacity = '1'; setTimeout(() => { el.style.opacity = '0'; }, 1200); }
 }
 
 function initActivityCard() {
@@ -906,9 +840,8 @@ function initActivityCard() {
   // Default selected day = today
   const todayDow = new Date().getDay() === 0 ? 7 : new Date().getDay();
   actSelectedDay     = DAYS[todayDow - 1];
-  actSelectedMuscles = [];
   const saved = actLoadDay(actSelectedDay);
-  actSelectedMuscles = MUSCLE_GROUPS.filter(g => (saved.muscles?.[g]?.exercises||0) > 0);
+  actSelectedMuscles = MUSCLE_GROUPS.filter(g => (saved.muscles?.[g] || 0) > 0);
 
   renderActivityCard();
 }
