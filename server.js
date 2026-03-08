@@ -1,13 +1,15 @@
+require('dotenv').config();
 const express  = require('express');
 const { MongoClient } = require('mongodb');
 const cors     = require('cors');
-const path     = require('path');
 
 const app  = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-const MONGO_URI = 'mongodb+srv://mrkushal321_db_user:25laQndhv6ZLuhXu@cluster0.s7vrwth.mongodb.net/?appName=Cluster0';
-const DB_NAME   = 'dfit';
+const MONGO_URI  = process.env.MONGO_URI;
+const DB_NAME    = 'dfit';
+const GROQ_KEY   = process.env.GROQ_API_KEY;
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 app.use(cors());
 app.use(express.json());
@@ -22,6 +24,67 @@ async function connectDB() {
   db = client.db(DB_NAME);
   console.log('✅ Connected to MongoDB Atlas — database: ' + DB_NAME);
 }
+
+// ─── Groq Chat ───────────────────────────────────────────────
+// POST /api/chat   { messages: [{role,content}], profile }  →  { reply }
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { messages = [], profile = {} } = req.body;
+
+    // Build system prompt with user profile context
+    const profileParts = [];
+    if (profile.name && profile.name !== 'Guest') profileParts.push(`User's name: ${profile.name}`);
+    if (profile.bmi)      profileParts.push(`BMI: ${profile.bmi}`);
+    if (profile.height)   profileParts.push(`Height: ${profile.height}cm`);
+    if (profile.weight)   profileParts.push(`Weight: ${profile.weight}kg`);
+    if (profile.age)      profileParts.push(`Age: ${profile.age}`);
+    if (profile.gender)   profileParts.push(`Gender: ${profile.gender}`);
+    if (profile.goal)     profileParts.push(`Fitness goal: ${profile.goal.replace(/-/g, ' ')}`);
+    if (profile.activity) profileParts.push(`Activity level: ${profile.activity}`);
+
+    const systemPrompt = `You are D-Fit, a world-class personal AI fitness coach. You give science-backed, practical, and motivating advice.
+${profileParts.length ? `\nUser profile:\n${profileParts.join('\n')}` : ''}
+
+Guidelines:
+- Always personalise advice using the user's profile data above when available.
+- Use **bold** for key terms and structure responses with bullet points for clarity.
+- Be encouraging, concise, and specific — not generic.
+- If the user asks something unrelated to fitness/health/nutrition, politely redirect them to fitness topics.
+- Do not mention that you are built on any underlying model. You are D-Fit AI Coach.`;
+
+    const groqMessages = [
+      { role: 'system', content: systemPrompt },
+      ...messages.map(m => ({ role: m.role === 'ai' ? 'assistant' : m.role, content: m.text }))
+    ];
+
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROQ_KEY}`
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: groqMessages,
+        max_tokens: 1024,
+        temperature: 0.7
+      })
+    });
+
+    const data = await groqRes.json();
+
+    if (!groqRes.ok) {
+      console.error('Groq API error:', data);
+      return res.status(502).json({ error: 'AI service error', detail: data.error?.message });
+    }
+
+    const reply = data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';
+    res.json({ reply });
+  } catch (err) {
+    console.error('Chat error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 // ─── Users ────────────────────────────────────────────────────
 // POST /api/register   { username, password, profile }

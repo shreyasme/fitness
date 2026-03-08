@@ -390,126 +390,21 @@ function hideTyping() {
   if (row) row.remove();
 }
 
-// ─── AI Response Engine ──────────────────────────────────────
-function buildContext() {
-  if (!profile) return '';
-  const parts = [];
-  if (profile.bmi) {
-    const cat = bmiCategory(profile.bmi);
-    parts.push(`BMI ${profile.bmi} (${cat.label})`);
+// ─── AI Response via Groq (through backend) ──────────────────
+async function getAIReply(session) {
+  // Send last 20 messages as context to keep tokens manageable
+  const history = session.messages.slice(-20);
+  const resp = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: history, profile: profile || {} })
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.detail || 'AI request failed');
   }
-  if (profile.height) parts.push(`height ${profile.height}cm`);
-  if (profile.weight) parts.push(`weight ${profile.weight}kg`);
-  if (profile.age)    parts.push(`age ${profile.age}`);
-  if (profile.gender) parts.push(`gender: ${profile.gender}`);
-  if (profile.goal)   parts.push(`goal: ${profile.goal.replace('-',' ')}`);
-  if (profile.activity) parts.push(`activity level: ${profile.activity}`);
-  return parts.length ? parts.join(', ') : '';
-}
-
-// AI response generator (local — no external API needed)
-function generateAIResponse(userMsg) {
-  const msg    = userMsg.toLowerCase();
-  const ctx    = buildContext();
-  const bmi    = profile?.bmi;
-  const goal   = profile?.goal;
-  const weight = profile?.weight;
-  const height = profile?.height;
-  const age    = profile?.age;
-  const cat    = bmi ? bmiCategory(bmi) : null;
-  const tdee   = bmrValue(profile);
-  const name   = (profile?.name && profile.name !== 'Guest') ? profile.name : null;
-  const greet  = name ? `Great question, ${name}! ` : '';
-
-  // ── BMI Explanation ──
-  if (msg.includes('bmi') || msg.includes('body mass')) {
-    if (bmi) {
-      return `${greet}Your current **BMI is ${bmi}**, which falls in the **${cat.label}** category.\n\n` +
-        `Here's what that means for you:\n- BMI < 18.5: Underweight\n- BMI 18.5–24.9: Normal ✅\n- BMI 25–29.9: Overweight\n- BMI ≥ 30: Obese\n\n` +
-        `${cat.label === 'Normal Weight'
-          ? '**You\'re in the healthy range!** Focus on maintaining your current weight through balanced nutrition and regular exercise.'
-          : `Your goal should be to move toward the Normal Weight range (18.5–24.9). I can help you build a plan tailored to your stats.`}`;
-    }
-    return `BMI (Body Mass Index) measures body fat based on height and weight. Go back to the home page and add your stats for a personalised BMI analysis! Your healthy range depends on your age, gender, and muscle mass.`;
-  }
-
-  // ── Calories / TDEE ──
-  if (msg.includes('calori') || msg.includes('tdee') || msg.includes('burn') || msg.includes('energy')) {
-    if (tdee) {
-      const deficit  = Math.round(tdee - 500);
-      const surplus  = Math.round(tdee + 300);
-      return `${greet}Based on your stats (${ctx}), your **Total Daily Energy Expenditure (TDEE) is approximately ${tdee} kcal/day**.\n\n` +
-        `Here's how to use it:\n- **Lose weight:** ~${deficit} kcal/day (500 kcal deficit)\n- **Maintain weight:** ~${tdee} kcal/day\n- **Gain muscle:** ~${surplus} kcal/day (300 kcal surplus)\n\n` +
-        `${goal === 'weight-loss' ? '**Since your goal is weight loss**, aim for the deficit range. Focus on protein-rich foods to preserve muscle.' :
-          goal === 'muscle-gain' ? '**Since your goal is muscle gain**, eat at a slight surplus and prioritise protein (1.6–2.2g per kg of body weight).' :
-          'Adjust your intake based on your specific fitness goal.'}`;
-    }
-    return `To calculate your exact calorie needs, add your height, weight, age, and activity level from the home screen. Generally, women need ~2,000 kcal/day and men ~2,500 kcal/day, adjusted for activity.`;
-  }
-
-  // ── Workout Plan ──
-  if (msg.includes('workout') || msg.includes('exercise') || msg.includes('training') || msg.includes('routine') || msg.includes('plan')) {
-    const isBegineer = msg.includes('beginner') || msg.includes('start');
-    let plan = `${greet}Here's a personalised **weekly workout plan** for you`;
-    if (ctx) plan += ` (${ctx})`;
-    plan += `:\n\n`;
-
-    if (goal === 'weight-loss' || (bmi && bmi >= 25)) {
-      plan += `**Monday** — Cardio: 30 min brisk walk/jog + 15 min core\n- **Tuesday** — Full-body strength (bodyweight squats, push-ups, rows)\n- **Wednesday** — Rest or light yoga/stretching\n- **Thursday** — HIIT: 20 min (30s on / 30s off intervals)\n- **Friday** — Strength: lower body focus (lunges, deadlifts, leg press)\n- **Saturday** — Cardio: 45 min cycle or swim\n- **Sunday** — Active rest: walking, mobility work\n\n**Key tip:** Pair this with a 300–500 kcal daily deficit for sustainable fat loss.`;
-    } else if (goal === 'muscle-gain') {
-      plan += `**Monday** — Chest & Triceps (bench press, dips, cable flies)\n- **Tuesday** — Back & Biceps (pull-ups, rows, curls)\n- **Wednesday** — Rest / Active Recovery\n- **Thursday** — Shoulders & Arms (OHP, lateral raises, face pulls)\n- **Friday** — Legs (squats, RDL, leg press, calf raises)\n- **Saturday** — Full-body compound lifts\n- **Sunday** — Complete Rest\n\n**Key tip:** Aim for progressive overload — add weight or reps each week.`;
-    } else {
-      plan += `**Monday** — Upper body strength (30 min)\n- **Tuesday** — Cardio (20–30 min moderate intensity)\n- **Wednesday** — Lower body & core (30 min)\n- **Thursday** — Rest or yoga\n- **Friday** — Full-body circuit (35 min)\n- **Saturday** — Outdoor activity (hiking, cycling, sport)\n- **Sunday** — Rest & recovery\n\nThis balanced plan builds strength, endurance, and flexibility together.`;
-    }
-    return plan;
-  }
-
-  // ── Nutrition / Diet ──
-  if (msg.includes('eat') || msg.includes('diet') || msg.includes('nutrition') || msg.includes('food') || msg.includes('meal') || msg.includes('protein')) {
-    let resp = `${greet}**Nutrition guidance** tailored for you`;
-    if (ctx) resp += ` (${ctx})`;
-    resp += `:\n\n`;
-    resp += `**Macronutrient targets:**\n- **Protein:** ${weight ? Math.round(weight * 1.8) : '120'}–${weight ? Math.round(weight * 2.2) : '150'}g/day (muscle preservation & satiety)\n- **Carbs:** ${tdee ? Math.round(tdee * 0.45 / 4) : '200'}–${tdee ? Math.round(tdee * 0.55 / 4) : '250'}g/day (energy for workouts)\n- **Healthy Fats:** ${tdee ? Math.round(tdee * 0.25 / 9) : '60'}–${tdee ? Math.round(tdee * 0.35 / 9) : '85'}g/day\n\n`;
-    resp += `**Top food recommendations:**\n- Lean proteins: chicken, fish, eggs, tofu, legumes\n- Complex carbs: oats, brown rice, sweet potatoes, quinoa\n- Healthy fats: avocado, olive oil, nuts, seeds\n- Vegetables: aim for 5+ servings/day\n\n`;
-    if (goal === 'weight-loss') resp += `**For weight loss:** Prioritise high-volume, low-calorie foods — leafy greens, broth-based soups, berries. Avoid liquid calories.`;
-    else if (goal === 'muscle-gain') resp += `**For muscle gain:** Eat within 30 minutes of training (protein + carb). Consider a pre-workout snack (banana + peanut butter).`;
-    return resp;
-  }
-
-  // ── Water / Hydration ──
-  if (msg.includes('water') || msg.includes('hydrat')) {
-    const oz = weight ? Math.round(weight * 0.033 * 33.8) : 80;
-    const L  = weight ? (weight * 0.033).toFixed(1) : '2.5';
-    return `${greet}**Hydration is crucial for performance and recovery!**\n\nBased on your weight${weight ? ` (${weight}kg)` : ''}, you should drink approximately **${L} litres (${oz} oz) of water per day**.\n\n**Tips to stay hydrated:**\n- Start your day with a large glass of water\n- Drink 500ml 30 min before exercise\n- Sip steadily during workouts (150–250ml every 15–20 min)\n- Add electrolytes (sodium, potassium) for sessions over 60 minutes\n- Eat water-rich foods: cucumber, watermelon, celery\n\nYour urine colour is a great indicator — aim for pale yellow!`;
-  }
-
-  // ── Sleep / Recovery ──
-  if (msg.includes('sleep') || msg.includes('recover') || msg.includes('rest')) {
-    return `${greet}**Sleep & recovery** are just as important as your workouts!\n\n**Optimal sleep for fitness:**\n- Adults: 7–9 hours/night\n- Athletes: 8–10 hours/night\n\n**Why it matters:**\n- Growth hormone (muscle repair) peaks during deep sleep\n- Sleep deprivation increases cortisol (promotes fat storage)\n- Poor sleep impairs performance by up to 30%\n\n**Recovery tips:**\n- Schedule rest days (at least 1–2 per week)\n- Use active recovery: light walking, swimming, yoga\n- Post-workout nutrition within 1–2 hours\n- Cold/contrast showers can reduce muscle soreness\n- Foam rolling 10 min before bed improves recovery`;
-  }
-
-  // ── Motivation ──
-  if (msg.includes('motivat') || msg.includes('stuck') || msg.includes('plateau') || msg.includes('give up') || msg.includes('hard')) {
-    return `${greet}It's completely normal to hit rough patches on your fitness journey! 💪\n\n**Remember:** Progress is not linear. Here's how to break through:\n\n**Beat a plateau:**\n- Change your workout routine every 4–6 weeks\n- Increase intensity (add weight, reduce rest time)\n- Adjust calories (diet break or slight recalculation)\n- Prioritise sleep and stress management\n\n**Stay motivated:**\n- Track non-scale victories (strength, energy, mood)\n- Find a workout partner or community\n- Take progress photos every 4 weeks\n- Celebrate small wins every single day\n\nYou've already taken the hardest step — you showed up. Keep going! 🌟`;
-  }
-
-  // ── Stretching / Flexibility ──
-  if (msg.includes('stretch') || msg.includes('flexib') || msg.includes('yoga') || msg.includes('mobility')) {
-    return `${greet}Improving **flexibility and mobility** pays off massively long-term!\n\n**Daily stretch routine (15 min):**\n- Neck & shoulder rolls — 1 min\n- Chest opener (doorway stretch) — 1 min\n- Hip flexor stretch (kneeling lunge) — 2 min each side\n- Hamstring stretch — 2 min each side\n- Spinal twist (seated or supine) — 2 min each side\n- Child's pose — 2 min\n- Figure-4 glute stretch — 2 min each side\n\n**Best time to stretch:** After workouts when muscles are warm, or before bed for relaxation.\n\n**Yoga styles for fitness:** Vinyasa (strength + flow), Yin Yoga (deep tissue), Power Yoga (cardio + flexibility).`;
-  }
-
-  // ── Weight / Progress tracking ──
-  if (msg.includes('track') || msg.includes('progress') || msg.includes('weigh') || msg.includes('measure')) {
-    return `${greet}**Tracking progress** is key to staying on target${bmi ? ` — your current BMI of ${bmi} is a great baseline` : ''}!\n\n**What to track:**\n- **Weight:** Weigh yourself weekly (same time, same conditions)\n- **Measurements:** Waist, hips, chest, arms, thighs (monthly)\n- **Photos:** Full-body photos every 4 weeks\n- **Performance:** Weights lifted, reps, distance, time\n- **Energy levels & sleep quality (1–10 scale)**\n\n**Why weekly, not daily?** Weight fluctuates 1–3kg daily due to water, food, and hormones. Weekly averages are more meaningful.\n\n**Apps to try:** MyFitnessPal (nutrition), Strong (lifts), Hevy (workouts), Cronometer (micronutrients).`;
-  }
-
-  // ── Default / General ──
-  const defaults = [
-    `${greet}I'm your personal D-Fit AI coach! ${ctx ? `With your stats (${ctx}), ` : ''}I can help you with:\n\n- 🏋️ **Personalised workout plans**\n- 🥗 **Nutrition & meal planning**\n- 📊 **BMI analysis & health metrics**\n- 💧 **Hydration & recovery guidance**\n- 📅 **Weekly fitness scheduling**\n- 💡 **Motivation & habit building**\n\nWhat would you like help with today?`,
-    `That's a great topic! ${ctx ? `Given your profile (${ctx}), ` : ''}let me give you a tailored answer. Could you be a bit more specific? For example, are you looking for workout advice, nutrition tips, or something else? I'm here to help you reach your fitness goals!`,
-    `${greet}I'm here to support your fitness journey every step of the way! ${bmi ? `Your BMI of ${bmi} gives me a great starting point to personalise advice. ` : ''}Ask me about workouts, diet, calorie targets, recovery, or anything fitness-related!`
-  ];
-  return defaults[Math.floor(Math.random() * defaults.length)];
+  const data = await resp.json();
+  return data.reply;
 }
 
 // ─── Send Message ─────────────────────────────────────────────
@@ -543,16 +438,20 @@ async function sendMessage(overrideText) {
   // Typing indicator
   showTyping();
 
-  // Simulate async AI response
-  const delay = 800 + Math.random() * 900;
-  await new Promise(r => setTimeout(r, delay));
-  hideTyping();
+  try {
+    const aiText = await getAIReply(session);
+    hideTyping();
 
-  const aiText = generateAIResponse(text);
-  const aiTime = new Date().toISOString();
-  const aiMsg  = { role: 'ai', text: aiText, time: aiTime };
-  session.messages.push(aiMsg);
-  renderBubble('ai', aiText, aiTime);
+    const aiTime = new Date().toISOString();
+    const aiMsg  = { role: 'ai', text: aiText, time: aiTime };
+    session.messages.push(aiMsg);
+    renderBubble('ai', aiText, aiTime);
+  } catch (err) {
+    hideTyping();
+    const errMsg = { role: 'ai', text: `⚠️ Sorry, I couldn't connect to the AI service. Please make sure the server is running.\n\n*${err.message}*`, time: new Date().toISOString() };
+    session.messages.push(errMsg);
+    renderBubble('ai', errMsg.text, errMsg.time);
+  }
 
   saveSessions();
   renderHistory();
