@@ -133,7 +133,7 @@ function updateUserBmi() {
 uHeight.addEventListener('input', updateUserBmi);
 uWeight.addEventListener('input', updateUserBmi);
 
-document.getElementById('userProceedBtn').addEventListener('click', () => {
+document.getElementById('userProceedBtn').addEventListener('click', async () => {
   const name     = document.getElementById('u-name').value.trim() || 'User';
   const height   = parseFloat(uHeight.value) || null;
   const weight   = parseFloat(uWeight.value) || null;
@@ -173,19 +173,44 @@ document.getElementById('userProceedBtn').addEventListener('click', () => {
     return;
   }
 
-  if (localStorage.getItem('dfitUser_' + username)) {
-    errorEl.textContent = 'Username already taken. Please choose another or Sign In.';
-    errorEl.style.display = 'block';
-    document.getElementById('u-username').style.borderColor = '#FF3B30';
-    setTimeout(() => { document.getElementById('u-username').style.borderColor = ''; }, 1500);
-    return;
-  }
-
   const profileData = {
     mode: 'user', name, username, height, weight, age, gender, goal, activity,
     bmi: calcBMI(height, weight)
   };
-  localStorage.setItem('dfitUser_' + username, JSON.stringify({ profile: profileData, password }));
+
+  // Show loading state
+  const btn = document.getElementById('userProceedBtn');
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+
+  try {
+    const resp = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, profile: profileData })
+    });
+    const result = await resp.json();
+
+    if (resp.status === 409) {
+      errorEl.textContent = 'Username already taken. Please choose another or Sign In.';
+      errorEl.style.display = 'block';
+      document.getElementById('u-username').style.borderColor = '#FF3B30';
+      setTimeout(() => { document.getElementById('u-username').style.borderColor = ''; }, 1500);
+      return;
+    }
+    if (!resp.ok) {
+      errorEl.textContent = result.error || 'Could not create account. Try again.';
+      errorEl.style.display = 'block';
+      return;
+    }
+  } catch {
+    errorEl.textContent = 'Cannot reach server. Make sure the app server is running.';
+    errorEl.style.display = 'block';
+    return;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Create My Profile';
+  }
 
   // Pre-fill login modal and prompt sign-in
   closeModal('userModal');
@@ -224,10 +249,11 @@ document.getElementById('signInFromModal').addEventListener('click', e => {
 document.getElementById('loginProceedBtn').addEventListener('click', doLogin);
 document.getElementById('l-password').addEventListener('keypress', e => { if (e.key === 'Enter') doLogin(); });
 
-function doLogin() {
+async function doLogin() {
   const username = document.getElementById('l-username').value.trim();
   const password = document.getElementById('l-password').value;
   const errorEl  = document.getElementById('loginError');
+  const loginBtn = document.getElementById('loginProceedBtn');
 
   errorEl.style.display = 'none';
 
@@ -237,22 +263,37 @@ function doLogin() {
     return;
   }
 
-  const stored = localStorage.getItem('dfitUser_' + username);
-  if (!stored) {
-    errorEl.textContent = 'No account found with that username.';
-    errorEl.style.display = 'block';
-    return;
-  }
+  loginBtn.disabled = true;
+  loginBtn.textContent = 'Signing in...';
 
-  const data = JSON.parse(stored);
-  if (data.password !== password) {
-    errorEl.textContent = 'Incorrect password. Please try again.';
-    errorEl.style.display = 'block';
-    document.getElementById('l-password').value = '';
-    document.getElementById('l-password').focus();
-    return;
-  }
+  try {
+    const resp = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const result = await resp.json();
 
-  sessionStorage.setItem('dfitProfile', JSON.stringify(data.profile));
-  window.location.href = 'app.html';
+    if (resp.status === 401) {
+      errorEl.textContent = 'Incorrect username or password.';
+      errorEl.style.display = 'block';
+      document.getElementById('l-password').value = '';
+      document.getElementById('l-password').focus();
+      return;
+    }
+    if (!resp.ok) {
+      errorEl.textContent = result.error || 'Login failed. Try again.';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    sessionStorage.setItem('dfitProfile', JSON.stringify(result.profile));
+    window.location.href = 'app.html';
+  } catch {
+    errorEl.textContent = 'Cannot reach server. Make sure the app server is running.';
+    errorEl.style.display = 'block';
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'Sign In';
+  }
 }

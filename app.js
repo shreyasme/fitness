@@ -138,10 +138,21 @@ function initProfile() {
     welcomeSub.textContent = `Welcome, ${profile.name}! I'm your personalised D-Fit AI coach. I have your biometric data ready — just ask me anything.`;
   }
 
-  // Load saved sessions from localStorage
-  const stored = localStorage.getItem('dfitSessions_' + (profile.username || profile.name || 'guest'));
-  if (stored) {
-    try { sessions = JSON.parse(stored); } catch { sessions = []; }
+  // Load sessions from MongoDB (async — also handles createSession / loadSession for users)
+  if (profile.mode === 'user') {
+    fetch('/api/sessions/' + profile.username)
+      .then(r => r.json())
+      .then(data => {
+        sessions = data;
+        if (sessions.length > 0) {
+          activeId = sessions[0].id;
+          loadSession(activeId);
+        } else {
+          createSession();
+        }
+        renderHistory();
+      })
+      .catch(() => { createSession(); renderHistory(); });
   }
 
   renderHistory();
@@ -150,7 +161,12 @@ function initProfile() {
 
 // ─── Session Management ──────────────────────────────────────
 function saveSessions() {
-  localStorage.setItem('dfitSessions_' + (profile.username || profile.name || 'guest'), JSON.stringify(sessions));
+  if (profile.mode !== 'user') return;
+  fetch('/api/sessions/' + profile.username, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sessions)
+  }).catch(console.error);
 }
 
 function getActiveSession() {
@@ -589,18 +605,26 @@ const MG_COLORS     = {
 
 let actSelectedDay     = null;   // 'Mon'…'Sun'
 let actSelectedMuscles = [];     // muscles toggled for that day
+let activityCache      = {};     // loaded from MongoDB on init
 
 // ── Storage helpers ─────────────────────────────────────────
 function actUserKey() {
-  return 'dfitAct_' + (profile.username || profile.name || 'guest');
+  return profile.username || profile.name || 'guest';
 }
 
 function actLoadAll() {
-  try { return JSON.parse(localStorage.getItem(actUserKey())) || {}; } catch { return {}; }
+  return activityCache;
 }
 
 function actSaveAll(data) {
-  localStorage.setItem(actUserKey(), JSON.stringify(data));
+  activityCache = data;
+  if (profile.mode === 'user') {
+    fetch('/api/activity/' + actUserKey(), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).catch(console.error);
+  }
 }
 
 // dateKey: "2026-3-8"
@@ -823,7 +847,7 @@ function autoSaveDay() {
   if (el) { el.style.opacity = '1'; setTimeout(() => { el.style.opacity = '0'; }, 1200); }
 }
 
-function initActivityCard() {
+async function initActivityCard() {
   const card = document.getElementById('activityCard');
   const body = document.getElementById('activityCardBody');
   card.style.display = 'block';
@@ -837,6 +861,17 @@ function initActivityCard() {
     return;
   }
 
+  // Show loading state while fetching
+  body.innerHTML = `<div style="text-align:center;padding:20px 0;opacity:0.6;font-size:13px">⏳ Loading activity...</div>`;
+
+  // Load from MongoDB
+  try {
+    const resp = await fetch('/api/activity/' + profile.username);
+    activityCache = await resp.json();
+  } catch {
+    activityCache = {};
+  }
+
   // Default selected day = today
   const todayDow = new Date().getDay() === 0 ? 7 : new Date().getDay();
   actSelectedDay     = DAYS[todayDow - 1];
@@ -846,13 +881,17 @@ function initActivityCard() {
   renderActivityCard();
 }
 
-// ─── Bootstrap ───────────────────────────────────────────────
+// ─── Bootstrap ────────────────────────────────────────────
 initProfile();
 
-// Create first session and start fresh
-if (sessions.length === 0) {
-  createSession();
-} else {
-  activeId = sessions[0].id;
-  loadSession(activeId);
+// For guest mode, sessions are not loaded from server — init immediately.
+// For user mode, session init is handled inside the async fetch callback in initProfile.
+const _pRaw = sessionStorage.getItem('dfitProfile');
+if (_pRaw && JSON.parse(_pRaw).mode !== 'user') {
+  if (sessions.length === 0) {
+    createSession();
+  } else {
+    activeId = sessions[0].id;
+    loadSession(activeId);
+  }
 }
