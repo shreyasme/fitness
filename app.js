@@ -579,63 +579,310 @@ if (newChatBtn) newChatBtn.addEventListener('click', () => {
 });
 
 // ─── My Activity Card ────────────────────────────────────────
-const MUSCLE_GROUPS = [
-  'Chest', 'Shoulder', 'Triceps', 'Biceps', 'Back', 'Legs', 'Abs', 'Cardio'
-];
-const STEP_GOAL = 10000;
+const MUSCLE_GROUPS = ['Chest','Shoulder','Triceps','Biceps','Back','Legs','Abs','Cardio'];
+const DAYS          = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const STEP_GOAL     = 10000;
+const MG_COLORS     = {
+  Chest:'#FF6B6B', Shoulder:'#FFD93D', Triceps:'#6BCB77', Biceps:'#4D96FF',
+  Back:'#C77DFF',  Legs:'#FF9A3C',     Abs:'#00C9A7',     Cardio:'#FF4D6D'
+};
 
-function activityStorageKey() {
-  return 'dfitActivity_' + (profile.username || profile.name || 'guest') + '_' + todayKey();
+let actSelectedDay     = null;   // 'Mon'…'Sun'
+let actSelectedMuscles = [];     // muscles toggled for that day
+
+// ── Storage helpers ─────────────────────────────────────────
+function actUserKey() {
+  return 'dfitAct_' + (profile.username || profile.name || 'guest');
 }
 
-function todayKey() {
-  const d = new Date();
+function actLoadAll() {
+  try { return JSON.parse(localStorage.getItem(actUserKey())) || {}; } catch { return {}; }
+}
+
+function actSaveAll(data) {
+  localStorage.setItem(actUserKey(), JSON.stringify(data));
+}
+
+// dateKey: "2026-3-8"
+function actDateKey(d) {
   return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
 }
 
-function loadActivityData() {
-  try { return JSON.parse(localStorage.getItem(activityStorageKey())) || {}; } catch { return {}; }
+// weekKey for current week: "2026-W10"   (ISO week)
+function actWeekKeyForDate(d) {
+  const tmp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = tmp.getUTCDay() || 7;
+  tmp.setUTCDate(tmp.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
+  const wk = Math.ceil((((tmp - yearStart) / 86400000) + 1) / 7);
+  return `${tmp.getUTCFullYear()}-W${wk}`;
 }
 
-function saveActivityData(data) {
-  localStorage.setItem(activityStorageKey(), JSON.stringify(data));
+// Get the date object for a given day-of-week tab in the current week
+function actDateForDayTab(dayName) {
+  const today    = new Date();
+  const todayDow = today.getDay() === 0 ? 7 : today.getDay(); // Mon=1..Sun=7
+  const tabDow   = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].indexOf(dayName) + 1;
+  const diff     = tabDow - todayDow;
+  const d        = new Date(today);
+  d.setDate(today.getDate() + diff);
+  return d;
 }
 
-function getActivityData() {
-  const data = loadActivityData();
-  const result = { steps: data.steps || 0, muscles: {} };
-  MUSCLE_GROUPS.forEach(g => {
-    result.muscles[g] = {
-      exercises: data.muscles?.[g]?.exercises || 0,
-      sets:      data.muscles?.[g]?.sets      || 0,
-      reps:      data.muscles?.[g]?.reps      || 0
-    };
+// Load one day's data  { steps, muscles:{ Chest:{exercises,sets,reps}, … } }
+function actLoadDay(dayName) {
+  const all = actLoadAll();
+  const key = actDateKey(actDateForDayTab(dayName));
+  return all[key] || { steps: 0, muscles: {} };
+}
+
+function actSaveDay(dayName, dayData) {
+  const all = actLoadAll();
+  const key = actDateKey(actDateForDayTab(dayName));
+  all[key]  = dayData;
+  actSaveAll(all);
+}
+
+// ── Pie chart (pure Canvas, no deps) ────────────────────────
+function drawPie(canvasId, segments) {
+  // segments: [{label, value, color}]
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx  = canvas.getContext('2d');
+  const W    = canvas.width;
+  const H    = canvas.height;
+  const cx   = W / 2, cy = H / 2, r = Math.min(cx, cy) - 4;
+  ctx.clearRect(0, 0, W, H);
+
+  const total = segments.reduce((s, x) => s + x.value, 0);
+  if (total === 0) {
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('No data', cx, cy);
+    return;
+  }
+
+  let start = -Math.PI / 2;
+  segments.forEach(seg => {
+    if (!seg.value) return;
+    const slice = (seg.value / total) * Math.PI * 2;
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, start, start + slice);
+    ctx.closePath(); ctx.fillStyle = seg.color; ctx.fill();
+    start += slice;
   });
-  return result;
+
+  // centre hole
+  ctx.beginPath(); ctx.arc(cx, cy, r * 0.48, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(88,86,214,0.85)'; ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(total + ' days', cx, cy);
 }
 
-function renderActivityProgress(data) {
-  const steps   = parseInt(data.steps) || 0;
-  const stepPct = Math.min(100, Math.round((steps / STEP_GOAL) * 100));
+// ── Monthly muscle frequency data ────────────────────────────
+function actMonthlyMuscleFreq() {
+  const all   = actLoadAll();
+  const now   = new Date();
+  const freq  = {};
+  MUSCLE_GROUPS.forEach(g => freq[g] = 0);
 
-  let workoutDone = false;
-  let summaryLines = '';
-  MUSCLE_GROUPS.forEach(g => {
-    const ex = parseInt(data.muscles?.[g]?.exercises) || 0;
-    if (ex > 0) workoutDone = true;
-    summaryLines += `<div>${g}: <strong>${ex}</strong> exercise${ex !== 1 ? 's' : ''}</div>`;
+  for (let i = 0; i < 30; i++) {
+    const d   = new Date(now); d.setDate(now.getDate() - i);
+    const key = actDateKey(d);
+    const day = all[key];
+    if (day && day.muscles) {
+      MUSCLE_GROUPS.forEach(g => {
+        if ((day.muscles[g]?.exercises || 0) > 0) freq[g]++;
+      });
+    }
+  }
+  return freq;
+}
+
+// ── Which days this week have data ──────────────────────────
+function actDaysWithData() {
+  const all = actLoadAll();
+  return DAYS.filter(d => {
+    const key = actDateKey(actDateForDayTab(d));
+    const day = all[key];
+    return day && ((day.steps > 0) || MUSCLE_GROUPS.some(g => (day.muscles?.[g]?.exercises || 0) > 0));
+  });
+}
+
+// ── Render the full card ─────────────────────────────────────
+function renderActivityCard() {
+  const body     = document.getElementById('activityCardBody');
+  const daysData = actDaysWithData();
+  const freq     = actMonthlyMuscleFreq();
+
+  // ── Day tabs ──
+  let tabsHTML = DAYS.map(d => {
+    const hasDot = daysData.includes(d) ? ' has-data' : '';
+    const active = d === actSelectedDay ? ' active' : '';
+    return `<button class="act-day-tab${active}${hasDot}" data-day="${d}">${d}</button>`;
+  }).join('');
+
+  // ── Muscle chip grid (only if a day is selected) ──
+  let chipsHTML = '';
+  let inputsHTML = '';
+
+  if (actSelectedDay) {
+    const dayData = actLoadDay(actSelectedDay);
+
+    chipsHTML = `
+      <div style="font-size:10px;opacity:0.7;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">
+        ${actSelectedDay} — Select workouts
+      </div>
+      <div class="act-muscle-chips">` +
+      MUSCLE_GROUPS.map(g => {
+        const sel = actSelectedMuscles.includes(g) ? ' selected' : '';
+        return `<button class="act-chip${sel}" data-muscle="${g}">${g}</button>`;
+      }).join('') +
+      `</div>`;
+
+    // Steps
+    inputsHTML += `
+      <div class="act-steps-row">
+        <label for="act-steps">Steps</label>
+        <input class="activity-input" id="act-steps" type="number" min="0"
+          placeholder="Today's steps" value="${dayData.steps || ''}">
+      </div>`;
+
+    // Muscle inputs for selected muscles
+    if (actSelectedMuscles.length) {
+      inputsHTML += `<div class="act-inputs-panel">`;
+      actSelectedMuscles.forEach(g => {
+        const d = dayData.muscles?.[g] || {};
+        inputsHTML += `
+          <div class="act-muscle-block">
+            <div class="act-muscle-block-label">${g}</div>
+            <div class="act-three-cols">
+              <div class="act-field">
+                <label>Exercises</label>
+                <input class="activity-input act-mi" type="number" min="0"
+                  data-group="${g}" data-field="exercises"
+                  value="${d.exercises||''}" placeholder="0">
+              </div>
+              <div class="act-field">
+                <label>Sets</label>
+                <input class="activity-input act-mi" type="number" min="0"
+                  data-group="${g}" data-field="sets"
+                  value="${d.sets||''}" placeholder="0">
+              </div>
+              <div class="act-field">
+                <label>Reps</label>
+                <input class="activity-input act-mi" type="number" min="0"
+                  data-group="${g}" data-field="reps"
+                  value="${d.reps||''}" placeholder="0">
+              </div>
+            </div>
+          </div>`;
+      });
+      inputsHTML += `</div>`;
+    }
+
+    inputsHTML += `<button class="act-save-btn" id="actSaveBtn">💾 Save ${actSelectedDay}'s activity</button>`;
+  }
+
+  // ── Pie chart section ──
+  const pieSegs = MUSCLE_GROUPS
+    .map(g => ({ label: g, value: freq[g], color: MG_COLORS[g] }))
+    .filter(s => s.value > 0);
+
+  const maxFreq = Math.max(...MUSCLE_GROUPS.map(g => freq[g]), 1);
+  const monthBars = MUSCLE_GROUPS.map(g => {
+    const pct = Math.round((freq[g] / 30) * 100);
+    return `
+      <div class="act-month-bar-row">
+        <div class="act-month-bar-label">
+          <span>${g}</span>
+          <span>${freq[g]} / 30 days</span>
+        </div>
+        <div class="act-month-bar-track">
+          <div class="act-month-bar-fill" style="width:${pct}%;background:${MG_COLORS[g]}"></div>
+        </div>
+      </div>`;
+  }).join('');
+
+  const legendHTML = MUSCLE_GROUPS
+    .filter(g => freq[g] > 0)
+    .map(g => `
+      <div class="act-legend-item">
+        <div class="act-legend-dot" style="background:${MG_COLORS[g]}"></div>
+        <span>${g} (${freq[g]})</span>
+      </div>`).join('');
+
+  body.innerHTML = `
+    <div class="act-day-tabs">${tabsHTML}</div>
+    ${chipsHTML}
+    ${inputsHTML}
+    <hr class="activity-divider">
+    <div class="act-chart-subtitle">30-Day Muscle Distribution</div>
+    <div class="act-chart-wrap">
+      <canvas id="actPieCanvas" width="140" height="140"></canvas>
+      <div class="act-legend">${legendHTML || '<div style="font-size:11px;opacity:0.6">Log workouts to see your chart</div>'}</div>
+    </div>
+    <div class="act-month-bar-list">${monthBars}</div>`;
+
+  // Draw pie
+  drawPie('actPieCanvas', pieSegs);
+
+  // ── Wire events ──────────────────────────────────────────
+  body.querySelectorAll('.act-day-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const day = btn.dataset.day;
+      if (actSelectedDay === day) {
+        actSelectedDay     = null;
+        actSelectedMuscles = [];
+      } else {
+        actSelectedDay     = day;
+        // restore previously saved muscles for this day
+        const saved = actLoadDay(day);
+        actSelectedMuscles = MUSCLE_GROUPS.filter(g => (saved.muscles?.[g]?.exercises||0) > 0);
+      }
+      renderActivityCard();
+    });
   });
 
-  const workoutStatus = workoutDone ? 'Completed' : 'Not Completed';
-  const goalStatus    = (steps >= STEP_GOAL && workoutDone) ? 'On Track' : 'Needs Activity';
+  body.querySelectorAll('.act-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const m = chip.dataset.muscle;
+      if (actSelectedMuscles.includes(m)) {
+        actSelectedMuscles = actSelectedMuscles.filter(x => x !== m);
+      } else {
+        actSelectedMuscles.push(m);
+      }
+      renderActivityCard();
+    });
+  });
 
-  document.getElementById('act-step-pct-bar').style.width    = stepPct + '%';
-  document.getElementById('act-step-pct-text').textContent   = `${steps.toLocaleString()} / ${STEP_GOAL.toLocaleString()}`;
-  document.getElementById('act-workout-summary').innerHTML   = summaryLines;
-  document.getElementById('act-workout-status').textContent  = workoutStatus;
-  document.getElementById('act-workout-status').className    = 'activity-badge ' + (workoutDone ? 'done' : 'notdone');
-  document.getElementById('act-goal-status').textContent     = goalStatus;
-  document.getElementById('act-goal-status').className       = 'activity-badge ' + (goalStatus === 'On Track' ? 'good' : 'warn');
+  const saveBtn = document.getElementById('actSaveBtn');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', () => {
+      const dayData = actLoadDay(actSelectedDay);
+      dayData.steps = parseInt(document.getElementById('act-steps').value) || 0;
+      if (!dayData.muscles) dayData.muscles = {};
+
+      body.querySelectorAll('.act-mi').forEach(inp => {
+        const g   = inp.dataset.group;
+        const fld = inp.dataset.field;
+        if (!dayData.muscles[g]) dayData.muscles[g] = {};
+        dayData.muscles[g][fld] = parseInt(inp.value) || 0;
+      });
+
+      // Zero out muscles that were de-selected
+      MUSCLE_GROUPS.forEach(g => {
+        if (!actSelectedMuscles.includes(g)) delete dayData.muscles[g];
+      });
+
+      actSaveDay(actSelectedDay, dayData);
+      saveBtn.textContent = '✅ Saved!';
+      setTimeout(() => renderActivityCard(), 800);
+    });
+  }
 }
 
 function initActivityCard() {
@@ -643,7 +890,6 @@ function initActivityCard() {
   const body = document.getElementById('activityCardBody');
   card.style.display = 'block';
 
-  // Guest: show lock message
   if (profile.mode !== 'user') {
     body.innerHTML = `
       <div class="activity-lock">
@@ -653,93 +899,14 @@ function initActivityCard() {
     return;
   }
 
-  // Build logged-in UI
-  const data = getActivityData();
+  // Default selected day = today
+  const todayDow = new Date().getDay() === 0 ? 7 : new Date().getDay();
+  actSelectedDay     = DAYS[todayDow - 1];
+  actSelectedMuscles = [];
+  const saved = actLoadDay(actSelectedDay);
+  actSelectedMuscles = MUSCLE_GROUPS.filter(g => (saved.muscles?.[g]?.exercises||0) > 0);
 
-  // Steps input
-  let html = `
-    <div class="activity-steps-row">
-      <label for="act-steps">Daily Steps</label>
-      <input class="activity-input" id="act-steps" type="number" min="0" max="100000"
-        placeholder="Enter today's steps" value="${data.steps || ''}">
-    </div>
-    <hr class="activity-divider">`;
-
-  // Muscle groups
-  MUSCLE_GROUPS.forEach(g => {
-    const key = g;
-    const d   = data.muscles?.[g] || {};
-    html += `
-    <div class="activity-muscle-group">
-      <div class="activity-muscle-label">${g}</div>
-      <div class="activity-muscle-inputs">
-        <div>
-          <label>Exercises</label>
-          <input class="activity-input act-muscle-input" type="number" min="0"
-            data-group="${key}" data-field="exercises"
-            value="${d.exercises || ''}" placeholder="0">
-        </div>
-        <div>
-          <label>Sets</label>
-          <input class="activity-input act-muscle-input" type="number" min="0"
-            data-group="${key}" data-field="sets"
-            value="${d.sets || ''}" placeholder="0">
-        </div>
-        <div>
-          <label>Reps</label>
-          <input class="activity-input act-muscle-input" type="number" min="0"
-            data-group="${key}" data-field="reps"
-            value="${d.reps || ''}" placeholder="0">
-        </div>
-      </div>
-    </div>`;
-  });
-
-  // Progress section
-  html += `
-    <hr class="activity-divider">
-    <div class="activity-progress-title">Today's Progress</div>
-    <div class="activity-progress-row">
-      <div class="activity-progress-label">Steps</div>
-      <div class="activity-progress-bar-wrap">
-        <div class="activity-progress-bar-fill" id="act-step-pct-bar" style="width:0%"></div>
-      </div>
-      <div class="activity-progress-text" id="act-step-pct-text">0 / ${STEP_GOAL.toLocaleString()}</div>
-    </div>
-    <div class="activity-progress-row">
-      <div class="activity-progress-label">Workout Summary</div>
-      <div class="activity-workout-summary" id="act-workout-summary"></div>
-    </div>
-    <div class="activity-status-badges">
-      <span class="activity-badge notdone" id="act-workout-status">Not Completed</span>
-      <span class="activity-badge warn"    id="act-goal-status">Needs Activity</span>
-    </div>`;
-
-  body.innerHTML = html;
-
-  // Initial progress render
-  renderActivityProgress(data);
-
-  // ── Event listeners ──────────────────────────────────────
-  document.getElementById('act-steps').addEventListener('input', function() {
-    const d = loadActivityData();
-    d.steps = parseInt(this.value) || 0;
-    saveActivityData(d);
-    renderActivityProgress(getActivityData());
-  });
-
-  body.querySelectorAll('.act-muscle-input').forEach(inp => {
-    inp.addEventListener('input', function() {
-      const d   = loadActivityData();
-      const grp = this.dataset.group;
-      const fld = this.dataset.field;
-      if (!d.muscles) d.muscles = {};
-      if (!d.muscles[grp]) d.muscles[grp] = {};
-      d.muscles[grp][fld] = parseInt(this.value) || 0;
-      saveActivityData(d);
-      renderActivityProgress(getActivityData());
-    });
-  });
+  renderActivityCard();
 }
 
 // ─── Bootstrap ───────────────────────────────────────────────
