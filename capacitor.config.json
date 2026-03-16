@@ -1,0 +1,29 @@
+{
+  "appId": "com.dfit.scheduler",
+  "appName": "D-Fit Scheduler",
+  "webDir": ".",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://YOUR-APP-NAME.onrender.com",
+    "cleartext": false,
+    "allowNavigation": [
+      "https://YOUR-APP-NAME.onrender.com"
+    ]
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#0f172a",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0f172a"
+    }
+  }
+}

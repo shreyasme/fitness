@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>D-Fit Scheduler</title>
+
+  <!-- PWA / Android -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#6366f1" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="D-Fit" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body { class: landing-body; }
+  </style>
+</head>
+<body class="landing-body">
+
+  <!-- ═══ TOPBAR ═══ -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-logo">
+        <svg viewBox="0 0 64 28" xmlns="http://www.w3.org/2000/svg" width="36" height="16" aria-hidden="true">
+          <rect x="0"  y="0" width="10" height="28" rx="2.5"  fill="white"/>
+          <rect x="10" y="5" width="4"  height="18" rx="1.5"  fill="white" opacity="0.5"/>
+          <rect x="14" y="9" width="3"  height="10" rx="1"    fill="white" opacity="0.72"/>
+          <rect x="17" y="12" width="9" height="4"  rx="1"    fill="white" opacity="0.35"/>
+          <text x="32" y="20" font-family="'Arial Black',Impact,'Helvetica Neue',sans-serif" font-size="18" font-weight="900" fill="white" text-anchor="middle">D</text>
+          <rect x="38" y="12" width="9" height="4"  rx="1"    fill="white" opacity="0.35"/>
+          <rect x="47" y="9" width="3"  height="10" rx="1"    fill="white" opacity="0.72"/>
+          <rect x="50" y="5" width="4"  height="18" rx="1.5"  fill="white" opacity="0.5"/>
+          <rect x="54" y="0" width="10" height="28" rx="2.5"  fill="white"/>
+        </svg>
+      </div>
+      <span class="topbar-title"><span class="brand-d">D</span>-Fit Scheduler</span>
+    </div>
+    <div class="topbar-actions">
+      <span class="theme-toggle-label" id="themeLabel">Light</span>
+      <button class="theme-toggle" id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode"></button>
+      <button class="btn btn-ghost" id="topbarSignInBtn" style="padding:6px 16px;font-size:13px;font-weight:600">Sign In</button>
+    </div>
+  </header>
+
+  <!-- ═══ HERO ═══ -->
+  <main class="hero">
+    <div class="hero-logo-wrap">
+      <svg viewBox="0 0 64 28" xmlns="http://www.w3.org/2000/svg" width="76" height="34" aria-hidden="true">
+        <rect x="0"  y="0" width="10" height="28" rx="2.5"  fill="white"/>
+        <rect x="10" y="5" width="4"  height="18" rx="1.5"  fill="white" opacity="0.5"/>
+        <rect x="14" y="9" width="3"  height="10" rx="1"    fill="white" opacity="0.72"/>
+        <rect x="17" y="12" width="9" height="4"  rx="1"    fill="white" opacity="0.35"/>
+        <text x="32" y="20" font-family="'Arial Black',Impact,'Helvetica Neue',sans-serif" font-size="18" font-weight="900" fill="white" text-anchor="middle">D</text>
+        <rect x="38" y="12" width="9" height="4"  rx="1"    fill="white" opacity="0.35"/>
+        <rect x="47" y="9" width="3"  height="10" rx="1"    fill="white" opacity="0.72"/>
+        <rect x="50" y="5" width="4"  height="18" rx="1.5"  fill="white" opacity="0.5"/>
+        <rect x="54" y="0" width="10" height="28" rx="2.5"  fill="white"/>
+      </svg>
+    </div>
+    <p class="hero-eyebrow">AI-Powered Fitness Assistant</p>
+    <h1 class="hero-title">
+      D-Fit <span>Scheduler</span><br>Chatbot
+    </h1>
+    <p class="hero-sub">
+      Your personal AI fitness coach — powered by your BMI, goals, and schedule. Get personalized workout plans, nutrition tips, and more.
+    </p>
+
+    <!-- Login Cards -->
+    <div class="login-cards">
+
+      <!-- Guest Login -->
+      <div class="login-card login-card-guest" id="guestCard" role="button" tabindex="0">
+        <div class="card-icon card-icon-guest">🧍</div>
+        <h2 class="card-title">Guest Access</h2>
+        <p class="card-desc">Try D-Fit instantly — no account required. Explore AI fitness guidance without saving history.</p>
+        <ul class="card-features">
+          <li>Quick, no-sign-up access</li>
+          <li>AI chat with general advice</li>
+          <li>BMI calculation on-the-fly</li>
+        </ul>
+        <button class="btn btn-ghost btn-full" id="guestLoginBtn">Continue as Guest →</button>
+      </div>
+
+      <!-- User Login -->
+      <div class="login-card login-card-user" id="userCard">
+        <div class="card-icon card-icon-user">✨</div>
+        <h2 class="card-title">Personal Profile</h2>
+        <p class="card-desc">Set up your profile with biometric data. Your AI coach will tailor every response to your exact fitness needs.</p>
+        <ul class="card-features">
+          <li>BMI &amp; body stats tracking</li>
+          <li>Personalised AI responses</li>
+          <li>Full chat history saved</li>
+        </ul>
+        <button class="btn btn-ghost btn-full" id="userLoginBtn">Create My Profile →</button>
+      </div>
+
+    </div>
+
+    <!-- Feature pills -->
+    <div class="hero-features">
+      <span class="feature-pill">📊 BMI Calculator</span>
+      <span class="feature-pill">🤖 AI Coach</span>
+      <span class="feature-pill">📅 Workout Scheduler</span>
+      <span class="feature-pill">🥗 Nutrition Tips</span>
+      <span class="feature-pill">🌙 Dark Mode</span>
+    </div>
+  </main>
+
+  <!-- ═══ GUEST MODAL ═══ -->
+  <div class="modal-overlay" id="guestModal">
+    <div class="modal">
+      <div class="modal-header" style="flex-direction:column;gap:0">
+        <div class="modal-icon" style="font-size:22px">🧍‍♂️</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;width:100%">
+          <div>
+            <h2 class="modal-title">Guest Access</h2>
+            <p class="modal-sub">Optional: enter your stats for better recommendations</p>
+          </div>
+          <button class="modal-close" data-modal="guestModal">✕</button>
+        </div>
+      </div>
+
+      <div class="modal-form" id="guestForm">
+        <div class="form-row">
+          <div class="input-group">
+            <label class="input-label" for="g-height">Height (cm)</label>
+            <input class="input-field" id="g-height" type="number" placeholder="e.g. 175" min="100" max="250">
+          </div>
+          <div class="input-group">
+            <label class="input-label" for="g-weight">Weight (kg)</label>
+            <input class="input-field" id="g-weight" type="number" placeholder="e.g. 70" min="30" max="300">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="input-group">
+            <label class="input-label" for="g-age">Age</label>
+            <input class="input-field" id="g-age" type="number" placeholder="e.g. 25" min="10" max="100">
+          </div>
+          <div class="input-group">
+            <label class="input-label" for="g-gender">Gender</label>
+            <select class="select-field" id="g-gender">
+              <option value="">Select</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="non-binary">Non-binary</option>
+              <option value="prefer-not">Prefer not to say</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="bmi-preview" id="gBmiPreview" style="display:none">
+          <div class="bmi-value" id="gBmiValue">—</div>
+          <div class="bmi-label" id="gBmiLabel">BMI</div>
+          <div class="bmi-bar-wrap"><div class="bmi-bar-fill" id="gBmiBar" style="width:0%;background:#34C759"></div></div>
+        </div>
+
+        <div class="divider">or</div>
+        <p style="font-size:13px;color:var(--text-secondary);text-align:center">Skip stats and start chatting right away</p>
+
+        <button class="btn btn-primary btn-full btn-lg" id="guestProceedBtn">Start Chatting →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ USER PROFILE MODAL ═══ -->
+  <div class="modal-overlay" id="userModal">
+    <div class="modal">
+      <div class="modal-header" style="flex-direction:column;gap:0">
+        <div class="modal-icon">✨</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;width:100%">
+          <div>
+            <h2 class="modal-title">Personal Profile</h2>
+            <p class="modal-sub">Let your AI coach know about you</p>
+          </div>
+          <button class="modal-close" data-modal="userModal">✕</button>
+        </div>
+      </div>
+
+      <div class="modal-form" id="userForm">
+        <div class="input-group">
+          <label class="input-label" for="u-name">Your Name</label>
+          <input class="input-field" id="u-name" type="text" placeholder="e.g. Alex Johnson">
+        </div>
+
+        <div class="form-row">
+          <div class="input-group">
+            <label class="input-label" for="u-height">Height (cm)</label>
+            <input class="input-field" id="u-height" type="number" placeholder="175" min="100" max="250">
+          </div>
+          <div class="input-group">
+            <label class="input-label" for="u-weight">Weight (kg)</label>
+            <input class="input-field" id="u-weight" type="number" placeholder="70" min="30" max="300">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="input-group">
+            <label class="input-label" for="u-age">Age</label>
+            <input class="input-field" id="u-age" type="number" placeholder="25" min="10" max="100">
+          </div>
+          <div class="input-group">
+            <label class="input-label" for="u-gender">Gender</label>
+            <select class="select-field" id="u-gender">
+              <option value="">Select</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="non-binary">Non-binary</option>
+              <option value="prefer-not">Prefer not to say</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label" for="u-goal">Primary Fitness Goal</label>
+          <select class="select-field" id="u-goal">
+            <option value="">Select a goal</option>
+            <option value="weight-loss">Weight Loss</option>
+            <option value="muscle-gain">Muscle Gain</option>
+            <option value="endurance">Improve Endurance</option>
+            <option value="flexibility">Flexibility & Mobility</option>
+            <option value="general">General Fitness</option>
+            <option value="maintain">Maintain Current Weight</option>
+          </select>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label" for="u-activity">Activity Level</label>
+          <select class="select-field" id="u-activity">
+            <option value="">Select activity level</option>
+            <option value="sedentary">Sedentary (desk job, no exercise)</option>
+            <option value="light">Lightly Active (1-3 days/week)</option>
+            <option value="moderate">Moderately Active (3-5 days/week)</option>
+            <option value="very">Very Active (6-7 days/week)</option>
+            <option value="athlete">Athlete (2x per day)</option>
+          </select>
+        </div>
+
+        <!-- Live BMI Preview -->
+        <div class="bmi-preview" id="uBmiPreview" style="display:none">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;color:var(--text-secondary);margin-bottom:6px">Your BMI Preview</div>
+          <div class="bmi-value" id="uBmiValue">—</div>
+          <div class="bmi-label" id="uBmiLabel">Calculating…</div>
+          <div class="bmi-bar-wrap" style="margin-top:8px"><div class="bmi-bar-fill" id="uBmiBar" style="width:0%;background:#34C759"></div></div>
+        </div>
+
+        <!-- Credentials -->
+        <div class="form-row">
+          <div class="input-group">
+            <label class="input-label" for="u-username">Username</label>
+            <input class="input-field" id="u-username" type="text" placeholder="Choose a username" autocomplete="username">
+          </div>
+          <div class="input-group">
+            <label class="input-label" for="u-password">Password</label>
+            <input class="input-field" id="u-password" type="password" placeholder="Choose a password" autocomplete="new-password">
+          </div>
+        </div>
+        <div id="userCreateError" style="display:none;color:#FF3B30;font-size:13px;text-align:center;padding:4px 0"></div>
+
+        <button class="btn btn-primary btn-full btn-lg" id="userProceedBtn">Create Account →</button>
+        <p style="margin-top:10px;text-align:center;font-size:13px;color:var(--text-secondary)">Already have an account? <a href="#" id="signInFromModal" style="color:var(--accent);font-weight:600;text-decoration:none">Sign In</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ LOGIN MODAL ═══ -->
+  <div class="modal-overlay" id="loginModal">
+    <div class="modal">
+      <div class="modal-header" style="flex-direction:column;gap:0">
+        <div class="modal-icon">🔐</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;width:100%">
+          <div>
+            <h2 class="modal-title">Sign In</h2>
+            <p class="modal-sub">Enter your credentials to access your profile</p>
+          </div>
+          <button class="modal-close" data-modal="loginModal">✕</button>
+        </div>
+      </div>
+
+      <div class="modal-form" id="loginForm">
+        <div class="input-group">
+          <label class="input-label" for="l-username">Username</label>
+          <input class="input-field" id="l-username" type="text" placeholder="Your username" autocomplete="username">
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="l-password">Password</label>
+          <input class="input-field" id="l-password" type="password" placeholder="Your password" autocomplete="current-password">
+        </div>
+        <div id="loginError" style="display:none;color:#FF3B30;font-size:13px;text-align:center;padding:6px 0"></div>
+        <button class="btn btn-primary btn-full btn-lg" id="loginProceedBtn">Sign In →</button>
+        <p style="margin-top:10px;text-align:center;font-size:13px;color:var(--text-secondary)">No account yet? <a href="#" id="goToCreateLink" style="color:var(--accent);font-weight:600;text-decoration:none">Create Profile</a></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="landing.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(reg => console.log('SW registered:', reg.scope))
+          .catch(err => console.log('SW error:', err));
+      });
+    }
+  </script>
+</body>
+</html>
