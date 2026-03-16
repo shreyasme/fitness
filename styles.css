@@ -967,3 +967,30 @@ a { text-decoration: none; color: inherit; }
   .chat-input-wrap { padding: 12px; }
   .msg-content { max-width: 86%; }
 }
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important; left: 0 !important; bottom: 0 !important;
+    z-index: 999 !important;
+    width: 80vw !important;
+    transform: translateX(-100%) !important;
+  }
+  .sidebar:not(.collapsed) {
+    transform: translateX(0) !important;
+  }
+  .sidebar.collapsed {
+    transform: translateX(-100%) !important;
+  }
+  .sidebar-toggle {
+    display: flex !important;
+    z-index: 1000 !important;
+  }
+  .app-layout {
+    display: flex !important;
+  }
+  .chat-main {
+    flex: 1 !important;
+    width: 100% !important;
+  }
+}
